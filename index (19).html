@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>swimming</title>
+<meta name="description" content="The pool is open. It has always been open. A quiet, endless set of tiled pool rooms to wander through, if you like that sort of thing.">
+<meta property="og:title" content="swimming">
+<meta property="og:description" content="The pool is open. It has always been open.">
+<meta property="og:url" content="https://swimming.rayanupadhyay.com/">
+<meta name="theme-color" content="#cfe9ea">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23dff1f1'/%3E%3Cpath d='M0 21h64M0 43h64M21 0v64M43 0v64' stroke='%23a9c9cb' stroke-width='2'/%3E%3Cpath d='M0 50q8-6 16 0t16 0 16 0 16 0v14H0z' fill='%2370c7cf' opacity='.85'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --tile:#e3f2f2; --ink:#20393b; --dim:#5d7b7d; --water:#6cc4cc; --deep:#123f45;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#cfe9ea;color:var(--ink);font:400 15px/1.5 var(--mono);-webkit-tap-highlight-color:transparent;touch-action:none;overscroll-behavior:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+
+/* title + pause */
+.veil{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;text-align:center;
+  background:
+    linear-gradient(rgba(207,233,234,.86),rgba(207,233,234,.94)),
+    repeating-linear-gradient(0deg,transparent 0 23px,rgba(120,160,162,.35) 23px 24px),
+    repeating-linear-gradient(90deg,transparent 0 23px,rgba(120,160,162,.35) 23px 24px);
+  transition:opacity 1.2s}
+.veil.gone{opacity:0;pointer-events:none}
+.veil[hidden]{display:none}
+.veil h1{margin:0;font:300 clamp(46px,11vw,104px)/1 var(--mono);letter-spacing:.18em;text-transform:lowercase;color:#2c5558}
+.veil h1 span{display:inline-block;animation:sway 6s ease-in-out infinite}
+.veil h1 span:nth-child(2n){animation-delay:-1.5s}.veil h1 span:nth-child(3n){animation-delay:-3s}
+@keyframes sway{50%{transform:translateY(5px)}}
+.veil p{margin:14px auto 0;max-width:460px;color:var(--dim)}
+.veil .go{margin-top:30px;padding:14px 28px;border:1px solid #2c5558;background:transparent;letter-spacing:.14em;text-transform:uppercase;font-size:14px}
+.veil .go:hover,.veil .go:focus-visible{background:#2c5558;color:var(--tile);outline:none}
+.veil .fine{font-size:12px;margin-top:22px;opacity:.85}
+.veil .fine kbd{font:inherit;border:1px solid #9bbcbe;padding:0 5px}
+.veil .back{position:fixed;left:18px;bottom:calc(14px + env(safe-area-inset-bottom,0px));font-size:12px;opacity:.7}
+
+/* hud */
+.hud{position:fixed;z-index:5;left:16px;top:calc(12px + env(safe-area-inset-top,0px));font-size:12px;letter-spacing:.08em;color:rgba(32,57,59,.7);pointer-events:none;transition:color .6s}
+.hud.under{color:rgba(220,245,245,.75)}
+.msg{position:fixed;z-index:6;left:50%;top:62%;transform:translateX(-50%);width:min(560px,86vw);text-align:center;font-size:15px;letter-spacing:.06em;color:#21393b;text-shadow:0 0 12px rgba(255,255,255,.8);opacity:0;transition:opacity 2.4s;pointer-events:none}
+.msg.on{opacity:1}
+.msg.under{color:#dff6f6;text-shadow:0 0 12px rgba(0,40,45,.8)}
+.pausebtn{position:fixed;z-index:7;right:12px;top:calc(8px + env(safe-area-inset-top,0px));width:40px;height:40px;border:0;background:transparent;font-size:18px;color:rgba(32,57,59,.6)}
+.vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(20,45,48,.38) 100%)}
+.grain{position:fixed;inset:-50%;z-index:4;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grain .5s steps(4) infinite}
+@keyframes grain{25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-1%)}}
+.white{position:fixed;inset:0;z-index:8;background:#fff;opacity:0;pointer-events:none;transition:opacity 2.5s}
+.white.on{opacity:1}
+.black{position:fixed;inset:0;z-index:8;background:#000;opacity:0;pointer-events:none}
+
+/* touch controls */
+.stick{position:fixed;z-index:6;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:1px solid rgba(32,57,59,.35);pointer-events:none;display:none}
+.stick i{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(32,57,59,.25)}
+.dive{position:fixed;z-index:6;right:22px;bottom:calc(26px + env(safe-area-inset-bottom,0px));width:78px;height:78px;border-radius:50%;border:1px solid rgba(32,57,59,.45);background:rgba(227,242,242,.35);font-size:11px;letter-spacing:.12em;text-transform:uppercase;display:none;-webkit-user-select:none;user-select:none}
+.dive.on{background:rgba(32,57,59,.35);color:#fff}
+body.touch .dive.show{display:block}
+body:not(.playing) .hud,body:not(.playing) .pausebtn{visibility:hidden}
+@media (prefers-reduced-motion:reduce){.veil h1 span,.grain{animation:none}}
+</style>
+</head>
+<body>
+<div class="veil" id="title">
+  <div>
+    <h1 aria-label="swimming"><span>s</span><span>w</span><span>i</span><span>m</span><span>m</span><span>i</span><span>n</span><span>g</span></h1>
+    <p>the pool is open.<br>it has always been open.</p>
+    <button class="go" id="go">enter the water</button>
+    <p class="fine">headphones recommended. there are sudden sounds.<br>
+      <span class="keys"><kbd>W A S D</kbd> walk · mouse to look · hold <kbd>space</kbd> to dive · <kbd>esc</kbd> to stop</span>
+      <span class="tkeys" hidden>left thumb to walk · drag to look · hold dive in deep water</span></p>
+  </div>
+  <a class="back" href="https://rayanupadhyay.com">← rayanupadhyay.com</a>
+</div>
+<div class="veil" id="paused" hidden>
+  <div>
+    <h1 style="font-size:clamp(34px,8vw,64px)">still here</h1>
+    <p id="pauseStats">the water waited for you.</p>
+    <button class="go" id="resume">keep swimming</button>
+    <p class="fine"><a href="https://rayanupadhyay.com">wake up</a></p>
+  </div>
+</div>
+<div class="vig"></div><div class="grain"></div>
+<div class="hud" id="hud">swimming · room 1</div>
+<div class="msg" id="msg" aria-live="polite"></div>
+<button class="pausebtn" id="pause" aria-label="Pause">❚❚</button>
+<div class="stick" id="stick"><i></i></div>
+<button class="dive" id="dive">dive</button>
+<div class="white" id="white"></div>
+<div class="black" id="black"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const touch = matchMedia('(pointer: coarse)').matches;
+if (touch) { document.body.classList.add('touch'); document.querySelector('.keys').hidden = true; document.querySelector('.tkeys').hidden = false; }
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('swim.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('swim.' + k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- world rules ---------- */
+const CELL = 8, HALF = CELL / 2, WATER = 0.35, EYE = 1.6, R = 3;
+const DOOR = 1.25, WALL_T = 0.3, LOW_CEIL = 4.2, HIGH_CEIL = 10;
+// the same seed every visit: the rooms are always where you left them
+const SEED = 1996;
+function hash(x, z, s){
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul(s + SEED, 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function cellInfo(cx, cz){
+  const start = cx === 0 && cz === 0;
+  const r = hash(cx, cz, 1);
+  const floor = start ? 0 : r < 0.2 ? -3.2 : r < 0.3 ? 0.6 : 0;
+  const tall = !start && hash(cx, cz, 2) < 0.14;
+  return {
+    floor, tall, ceil: tall ? HIGH_CEIL : LOW_CEIL,
+    pillars: !start && floor > -1 && hash(cx, cz, 3) < 0.35,
+    flicker: !start && hash(cx, cz, 4) < 0.12,
+    dark: !start && hash(cx, cz, 5) < 0.06
+  };
+}
+// edge kinds: 0 open, 1 wall with a doorway. east edge of (cx,cz) sits at x = cx*8+4
+function edgeE(cx, cz){ return hash(cx, cz, 11) < 0.5 ? 1 : 0; }
+function edgeS(cx, cz){ return cx === 0 && cz === -1 ? 0 : hash(cx, cz, 12) < 0.5 ? 1 : 0; } // the first room's back wall is solid, built by the room itself
+const cellOf = v => Math.round(v / CELL);
+
+/* ---------- textures ---------- */
+function canvasTex(w, h, draw){
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+}
+const tileTex = canvasTex(256, 256, (g, w) => {
+  const n = 8, s = w / n;
+  g.fillStyle = '#9fb9ba'; g.fillRect(0, 0, w, w);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const l = 90 + Math.random() * 4, sh = Math.random() < 0.04 ? -7 : 0;
+    g.fillStyle = `hsl(183,${18 + Math.random() * 8}%,${l + sh}%)`;
+    g.fillRect(i * s + 1.5, j * s + 1.5, s - 3, s - 3);
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(i * s + 3, j * s + 3, s - 9, 2);
+  }
+});
+const causticTex = canvasTex(256, 256, (g, w) => {
+  g.fillStyle = '#000'; g.fillRect(0, 0, w, w);
+  g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineCap = 'round';
+  for (let k = 0; k < 70; k++) {
+    const x = Math.random() * w, y = Math.random() * w, r = 10 + Math.random() * 26;
+    g.lineWidth = 1 + Math.random() * 2.5; g.beginPath();
+    for (let a = 0; a <= 6.3; a += 0.5) {
+      const rr = r * (0.7 + Math.random() * 0.5), px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+      a ? g.lineTo(px, py) : g.moveTo(px, py);
+    }
+    g.closePath(); g.stroke();
+  }
+  // tile the edges so it repeats without seams
+  g.drawImage(g.canvas, w / 2, 0, w / 2, w, 0, 0, w / 2, w);
+});
+function signTex(lines, color, bg){
+  return canvasTex(512, 256, (g, w, h) => {
+    g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+    lines.forEach((t, i) => { g.font = (i ? '500 34px' : lines.length === 1 ? '600 150px' : '600 60px') + ' "IBM Plex Mono",monospace'; g.fillText(t, w / 2, h / 2 + (i - (lines.length - 1) / 2) * 70); });
+  });
+}
+
+/* ---------- renderer ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias: !touch, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, touch ? 1.25 : 1.6));
+renderer.setSize(innerWidth, innerHeight);
+renderer.domElement.setAttribute('aria-hidden', 'true');
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const AIR = { fog: new THREE.Color('#d6ecec'), density: 0.055 }, UNDER = { fog: new THREE.Color('#1f6f78'), density: 0.16 };
+scene.fog = new THREE.FogExp2(AIR.fog.clone(), AIR.density);
+scene.background = scene.fog.color;
+const camera = new THREE.PerspectiveCamera(touch ? 78 : 72, innerWidth / innerHeight, 0.05, 120);
+camera.rotation.order = 'YXZ';
+const amb = new THREE.AmbientLight('#eaf7f7', 0.78); scene.add(amb);
+const hemi = new THREE.HemisphereLight('#ffffff', '#7fb8bc', 0.35); scene.add(hemi);
+const sun = new THREE.DirectionalLight('#ffffff', 0.45); sun.position.set(0.4, 1, 0.25); scene.add(sun);
+const BASE = { amb: 0.78, hemi: 0.35, sun: 0.45 };
+
+const M = {
+  tile: new THREE.MeshLambertMaterial({ map: tileTex }),
+  panel: new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+  panelFlicker: new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+  panelDead: new THREE.MeshBasicMaterial({ color: '#7d9294' }),
+  caustic: new THREE.MeshBasicMaterial({ map: causticTex, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }),
+  figure: new THREE.MeshBasicMaterial({ color: '#0b1112' })
+};
+
+/* ---------- geometry: each cell is merged into one mesh per material ---------- */
+const TILE_M = 1.2; // metres per texture repeat (8 tiles: 15 cm each)
+function Builder(){ this.p = []; this.n = []; this.u = []; }
+Builder.prototype.face = function(a, b, c, d, nx, ny, nz, ua, va){
+  // a,b,c,d: corners counter-clockwise seen from the normal side; ua/va pick the axes for world-space UVs
+  const P = [a, b, c, a, c, d];
+  for (const v of P) { this.p.push(v[0], v[1], v[2]); this.n.push(nx, ny, nz); this.u.push(v[ua] / TILE_M, v[va] / TILE_M); }
+};
+Builder.prototype.box = function(x0, y0, z0, x1, y1, z1){
+  if (x1 - x0 < 1e-3 || y1 - y0 < 1e-3 || z1 - z0 < 1e-3) return;
+  this.face([x0,y1,z1],[x1,y1,z1],[x1,y1,z0],[x0,y1,z0], 0, 1, 0, 0, 2);
+  this.face([x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1], 0,-1, 0, 0, 2);
+  this.face([x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1], 0, 0, 1, 0, 1);
+  this.face([x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0], 0, 0,-1, 0, 1);
+  this.face([x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1], 1, 0, 0, 2, 1);
+  this.face([x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0],-1, 0, 0, 2, 1);
+};
+Builder.prototype.quadUp = function(x0, z0, x1, z1, y){
+  this.face([x0,y,z1],[x1,y,z1],[x1,y,z0],[x0,y,z0], 0, 1, 0, 0, 2);
+};
+Builder.prototype.quadDown = function(x0, z0, x1, z1, y){
+  this.face([x0,y,z0],[x1,y,z0],[x1,y,z1],[x0,y,z1], 0, -1, 0, 0, 2);
+};
+Builder.prototype.mesh = function(mat, uvScale){
+  if (!this.p.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
+  const u = uvScale ? this.u.map(v => v * uvScale) : this.u;
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
+  g.computeBoundingSphere();
+  return new THREE.Mesh(g, mat);
+};
+
+// walls along one edge, with a doorway in the middle. axis 'x' means the wall runs along z at fixed x
+function edgeWall(B, axis, at, from, to, y0, yDoorTop, yTop, door){
+  const t = WALL_T / 2;
+  const seg = (a, b, lo, hi) => axis === 'x' ? B.box(at - t, lo, a, at + t, hi, b) : B.box(a, lo, at - t, b, hi, at + t);
+  const mid = (from + to) / 2;
+  if (door) { seg(from, mid - DOOR, y0, yTop); seg(mid + DOOR, to, y0, yTop); seg(mid - DOOR, mid + DOOR, yDoorTop, yTop); }
+  else seg(from, to, y0, yTop);
+}
+
+const cells = new Map();
+const colliders = new Map(); // key -> list of xz boxes
+function key(cx, cz){ return cx + ',' + cz; }
+function buildCell(cx, cz){
+  const info = cellInfo(cx, cz), x = cx * CELL, z = cz * CELL;
+  const T = new Builder(), P = new Builder(), C = new Builder(), F = new Builder(), D = new Builder();
+  const boxes = [];
+  // floor slab and ceiling slab
+  T.box(x - HALF, -4.5, z - HALF, x + HALF, info.floor, z + HALF);
+  T.box(x - HALF, info.ceil, z - HALF, x + HALF, info.ceil + 0.35, z + HALF);
+  // a step down into the deep end: a ledge around the inside, just under the water
+  if (info.floor < -1) T.box(x - HALF, info.floor, z - HALF, x - HALF + 0.6, -1.4, z + HALF);
+  // lights
+  const panelSet = info.dark ? D : info.flicker ? F : P;
+  if (info.tall) panelSet.box(x - 2.4, info.ceil - 0.06, z - 2.4, x + 2.4, info.ceil, z + 2.4);
+  else for (const [ox, oz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) panelSet.box(x + ox - 0.55, info.ceil - 0.05, z + oz - 0.9, x + ox + 0.55, info.ceil, z + oz + 0.9);
+  // pillars
+  if (info.pillars) for (const [ox, oz] of [[-1.9, -1.9], [1.9, -1.9], [-1.9, 1.9], [1.9, 1.9]]) {
+    T.box(x + ox - 0.35, info.floor, z + oz - 0.35, x + ox + 0.35, info.ceil, z + oz + 0.35);
+    boxes.push([x + ox - 0.35, z + oz - 0.35, x + ox + 0.35, z + oz + 0.35]);
+  }
+  // caustics on any floor under the water
+  if (info.floor < WATER) C.quadUp(x - HALF, z - HALF, x + HALF, z + HALF, info.floor + 0.015);
+  // the east and south edges belong to this cell
+  for (const side of ['e', 's']) {
+    const ncx = side === 'e' ? cx + 1 : cx, ncz = side === 's' ? cz + 1 : cz;
+    const other = cellInfo(ncx, ncz), kind = side === 'e' ? edgeE(cx, cz) : edgeS(cx, cz);
+    const lo = Math.min(info.floor, other.floor), lowCeil = Math.min(info.ceil, other.ceil), hiCeil = Math.max(info.ceil, other.ceil);
+    const at = side === 'e' ? x + HALF : z + HALF, from = side === 'e' ? z - HALF : x - HALF, to = from + CELL;
+    const axis = side === 'e' ? 'x' : 'z';
+    if (kind) {
+      edgeWall(T, axis, at, from, to, lo, Math.max(info.floor, other.floor) + 2.7, lowCeil, true);
+      const mid = (from + to) / 2, t = WALL_T / 2;
+      for (const [a, b] of [[from, mid - DOOR], [mid + DOOR, to]]) boxes.push(axis === 'x' ? [at - t, a, at + t, b] : [a, at - t, b, at + t]);
+    }
+    // where a tall room meets a low one, close the gap above the low ceiling
+    if (hiCeil > lowCeil + 0.1) edgeWall(T, axis, at, from, to, lowCeil, 0, hiCeil + 0.35, false);
+  }
+  const g = new THREE.Group();
+  for (const m of [T.mesh(M.tile), P.mesh(M.panel), F.mesh(M.panelFlicker), D.mesh(M.panelDead), C.mesh(M.caustic, 0.3)]) if (m) g.add(m);
+  // the first room has a sign
+  if (cx === 0 && cz === 0) {
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), new THREE.MeshLambertMaterial({ map: signTex(['NO LIFEGUARD', 'ON DUTY'], '#8a2b22', '#efe9dc') }));
+    s.position.set(x, 2.3, z - HALF + 0.16 + WALL_T / 2); g.add(s);
+    const wb = new Builder(); wb.box(x - HALF, Math.min(0, cellInfo(0, -1).floor), z - HALF - 0.15, x + HALF, Math.max(LOW_CEIL, cellInfo(0, -1).ceil + 0.35), z - HALF + 0.15); g.add(wb.mesh(M.tile));
+    boxes.push([x - HALF, z - HALF - 0.15, x + HALF, z - HALF + 0.15]);
+  }
+  scene.add(g);
+  cells.set(key(cx, cz), g);
+  colliders.set(key(cx, cz), boxes);
+}
+function dropCell(k){
+  const g = cells.get(k); if (!g) return;
+  scene.remove(g);
+  g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map && o.material.map !== tileTex && o.material.map !== causticTex) { o.material.map.dispose(); o.material.dispose(); } });
+  cells.delete(k); colliders.delete(k);
+}
+let lastCell = null;
+function streamCells(px, pz){
+  const cx = cellOf(px), cz = cellOf(pz), here = key(cx, cz);
+  if (here === lastCell) return;
+  lastCell = here;
+  const want = new Set();
+  // build nearest first so the room you're in never pops in late
+  const list = [];
+  for (let i = -R; i <= R; i++) for (let j = -R; j <= R; j++) list.push([cx + i, cz + j, i * i + j * j]);
+  list.sort((a, b) => a[2] - b[2]);
+  for (const [a, b] of list) { const k = key(a, b); want.add(k); if (!cells.has(k)) buildCell(a, b); }
+  for (const k of [...cells.keys()]) if (!want.has(k)) dropCell(k);
+}
+
+/* ---------- water ---------- */
+const WSIZE = 64, WSEG = touch ? 40 : 56;
+const waterGeo = new THREE.PlaneGeometry(WSIZE, WSIZE, WSEG, WSEG); waterGeo.rotateX(-Math.PI / 2);
+const waterMat = new THREE.MeshPhongMaterial({ color: '#5fc0c9', specular: '#ffffff', shininess: 90, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
+const water = new THREE.Mesh(waterGeo, waterMat); water.position.y = WATER; water.renderOrder = 2; scene.add(water);
+const wpos = waterGeo.attributes.position, wbase = Float32Array.from(wpos.array);
+function waveAt(x, z, t){ return Math.sin(x * 0.9 + t * 1.1) * 0.025 + Math.sin(z * 1.3 - t * 0.8) * 0.02 + Math.sin((x + z) * 2.1 + t * 1.7) * 0.008; }
+function updateWater(t){
+  const ox = water.position.x, oz = water.position.z;
+  for (let i = 0; i < wpos.count; i++) wpos.array[i * 3 + 1] = waveAt(wbase[i * 3] + ox, wbase[i * 3 + 2] + oz, t);
+  wpos.needsUpdate = true; waterGeo.computeVertexNormals();
+}
+
+/* ---------- the figure ---------- */
+const figure = new THREE.Group();
+{
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.24, 1.75, 10), M.figure); body.position.y = 0.88;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), M.figure); head.position.y = 1.98; head.scale.set(0.9, 1.15, 0.9);
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.05, 6), M.figure); armL.position.set(-0.26, 1.15, 0);
+  const armR = armL.clone(); armR.position.x = 0.26;
+  figure.add(body, head, armL, armR);
+  figure.visible = false; scene.add(figure);
+}
+
+/* ---------- sound (all synthesized) ---------- */
+let actx = null, A = {};
+function audio(){
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
+  const c = actx;
+  A.out = c.createGain(); A.out.gain.value = 0.9;
+  A.muffle = c.createBiquadFilter(); A.muffle.type = 'lowpass'; A.muffle.frequency.value = 16000;
+  A.out.connect(A.muffle).connect(c.destination);
+  // a long, tiled reverb
+  const len = c.sampleRate * 4.2, ir = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+  A.verb = c.createConvolver(); A.verb.buffer = ir;
+  A.wet = c.createGain(); A.wet.gain.value = 0.55; A.verb.connect(A.wet).connect(A.out);
+  A.dry = c.createGain(); A.dry.connect(A.out);
+  const noise = (type) => { const b = c.createBuffer(1, c.sampleRate * 3, c.sampleRate), d = b.getChannelData(0); let l = 0; for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; if (type === 'brown') { l = (l + 0.02 * w) / 1.02; d[i] = l * 3.5; } else d[i] = w; } return b; };
+  A.white = noise('white'); A.brown = noise('brown');
+  // fluorescent hum
+  A.hum = c.createGain(); A.hum.gain.value = 0;
+  const hl = c.createBiquadFilter(); hl.type = 'lowpass'; hl.frequency.value = 520;
+  for (const [f, v, type] of [[60, 0.05, 'sawtooth'], [120, 0.035, 'sine'], [180.4, 0.012, 'sine']]) { const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f; g.gain.value = v; o.connect(g).connect(hl); o.start(); }
+  hl.connect(A.hum); A.hum.connect(A.dry); A.hum.connect(A.verb);
+  A.hum.gain.setTargetAtTime(0.32, c.currentTime, 2);
+  // water lapping and the pool filter
+  const lap = c.createBufferSource(); lap.buffer = A.brown; lap.loop = true;
+  const lb = c.createBiquadFilter(); lb.type = 'bandpass'; lb.frequency.value = 420; lb.Q.value = 0.8;
+  A.lap = c.createGain(); A.lap.gain.value = 0.16;
+  const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 0.21; lg.gain.value = 0.08; lfo.connect(lg).connect(A.lap.gain); lfo.start();
+  lap.connect(lb).connect(A.lap); A.lap.connect(A.dry); A.lap.connect(A.verb); lap.start();
+  const filt = c.createBufferSource(); filt.buffer = A.white; filt.loop = true;
+  const fb = c.createBiquadFilter(); fb.type = 'lowpass'; fb.frequency.value = 180;
+  const fg = c.createGain(); fg.gain.value = 0.05; filt.connect(fb).connect(fg).connect(A.verb); filt.start();
+}
+function burst(opts){
+  if (!actx) return;
+  const c = actx, t = c.currentTime + (opts.delay || 0);
+  const s = c.createBufferSource(); s.buffer = A.white;
+  const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = opts.freq || 1100; f.Q.value = opts.q || 1.2;
+  const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(opts.vol || 0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + (opts.len || 0.25));
+  const p = c.createStereoPanner ? c.createStereoPanner() : null;
+  let node = s.connect(f).connect(g);
+  if (p) { p.pan.value = opts.pan || 0; node = node.connect(p); }
+  node.connect(A.dry); node.connect(A.verb);
+  s.start(t, Math.random() * 2, (opts.len || 0.25) + 0.05);
+}
+function splash(vol, pan, delay){ burst({ freq: 900 + Math.random() * 700, q: 0.9, vol, len: 0.32, pan, delay }); burst({ freq: 2600, q: 2, vol: vol * 0.5, len: 0.18, pan, delay: (delay || 0) + 0.04 }); }
+function step(){ burst({ freq: 300 + Math.random() * 80, q: 3, vol: 0.12, len: 0.09 }); }
+function drip(){
+  if (!actx) return;
+  const c = actx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+  o.frequency.setValueAtTime(1500 + Math.random() * 900, t); o.frequency.exponentialRampToValueAtTime(600, t + 0.12);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+  const p = c.createStereoPanner ? c.createStereoPanner() : null;
+  if (p) { p.pan.value = Math.random() * 2 - 1; o.connect(g).connect(p).connect(A.verb); } else o.connect(g).connect(A.verb);
+  o.start(t); o.stop(t + 0.25);
+}
+function sting(){
+  if (!actx) return;
+  const c = actx, t = c.currentTime;
+  for (const [f, v] of [[41, 0.5], [61.7, 0.22], [87.3, 0.16], [92.5, 0.12]]) {
+    const o = c.createOscillator(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.value = f;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(200, t); lp.frequency.exponentialRampToValueAtTime(1400, t + 0.15); lp.frequency.exponentialRampToValueAtTime(120, t + 2.4);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+    o.connect(lp).connect(g); g.connect(A.dry); g.connect(A.verb); o.start(t); o.stop(t + 2.7);
+  }
+}
+function thump(){
+  if (!actx) return;
+  const c = actx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+  o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(32, t + 0.5);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  o.connect(g); g.connect(A.dry); g.connect(A.verb); o.start(t); o.stop(t + 1);
+}
+function setUnder(on){
+  if (!actx) return;
+  const t = actx.currentTime;
+  A.muffle.frequency.setTargetAtTime(on ? 520 : 16000, t, 0.12);
+  A.hum.gain.setTargetAtTime(on ? 0.08 : (lightsOut > 0 ? 0 : 0.32), t, 0.2);
+}
+
+/* ---------- player ---------- */
+const P = { x: 0, y: 0, z: 1.5, vy: 0, yaw: 0, pitch: 0, swim: false, under: false, bob: 0, stepT: 0 };
+const keys = {};
+let diveHeld = false;
+function floorAt(x, z){ return cellInfo(cellOf(x), cellOf(z)).floor; }
+function blocked(x, z, r){
+  const cx = cellOf(x), cz = cellOf(z);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const b = colliders.get(key(cx + i, cz + j)); if (!b) continue;
+    for (const q of b) if (x + r > q[0] && x - r < q[2] && z + r > q[1] && z - r < q[3]) return true;
+  }
+  // a floor too high to step onto
+  const f = floorAt(x, z), feet = P.swim ? P.y : P.y;
+  const reach = P.swim ? (P.y >= WATER - EYE - 0.2 ? 1.8 : 0) : 0.7;
+  if (f > feet + reach) return true;
+  return false;
+}
+function move(dt, fx, fz){
+  const speed = (P.swim ? 1.7 : floorAt(P.x, P.z) < WATER ? 2.1 : 2.7) * (keys.ShiftLeft || keys.ShiftRight ? 1.5 : 1);
+  const s = Math.sin(P.yaw), c = Math.cos(P.yaw);
+  let dx = (fx * c - fz * s) * speed * dt, dz = (-fx * s - fz * c) * speed * dt;
+  const r = 0.32;
+  if (!blocked(P.x + dx, P.z, r)) P.x += dx; else dx = 0;
+  if (!blocked(P.x, P.z + dz, r)) P.z += dz; else dz = 0;
+  return Math.hypot(dx, dz) / dt;
+}
+
+/* ---------- input ---------- */
+let running = false, paused = false;
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') { diveHeld = true; e.preventDefault(); }
+});
+addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Space') diveHeld = false; });
+const cv = renderer.domElement;
+cv.addEventListener('click', () => { if (running && !touch && document.pointerLockElement !== cv) cv.requestPointerLock && cv.requestPointerLock(); });
+document.addEventListener('pointerlockchange', () => { if (running && !touch && document.pointerLockElement !== cv && !paused) pause(); });
+addEventListener('mousemove', e => {
+  if (!running || paused || document.pointerLockElement !== cv) return;
+  P.yaw -= e.movementX * 0.0022; P.pitch = Math.max(-1.35, Math.min(1.35, P.pitch - e.movementY * 0.0022));
+});
+// touch: left half is a stick, right half looks around
+const stick = $('stick'), stickDot = stick.firstElementChild;
+const T = { move: null, look: null, mx: 0, my: 0 };
+cv.addEventListener('touchstart', e => {
+  for (const t of e.changedTouches) {
+    if (t.clientX < innerWidth * 0.45 && !T.move) { T.move = { id: t.identifier, x: t.clientX, y: t.clientY }; stick.style.left = t.clientX + 'px'; stick.style.top = t.clientY + 'px'; stick.style.display = 'block'; stickDot.style.transform = ''; }
+    else if (!T.look) T.look = { id: t.identifier, x: t.clientX, y: t.clientY };
+  }
+  e.preventDefault();
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (T.move && t.identifier === T.move.id) {
+      let dx = t.clientX - T.move.x, dy = t.clientY - T.move.y; const d = Math.hypot(dx, dy), m = 46;
+      if (d > m) { dx *= m / d; dy *= m / d; }
+      T.mx = dx / m; T.my = dy / m; stickDot.style.transform = `translate(${dx}px,${dy}px)`;
+    } else if (T.look && t.identifier === T.look.id) {
+      P.yaw -= (t.clientX - T.look.x) * 0.0055; P.pitch = Math.max(-1.3, Math.min(1.3, P.pitch - (t.clientY - T.look.y) * 0.0055));
+      T.look.x = t.clientX; T.look.y = t.clientY;
+    }
+  }
+  e.preventDefault();
+}, { passive: false });
+const endTouch = e => {
+  for (const t of e.changedTouches) {
+    if (T.move && t.identifier === T.move.id) { T.move = null; T.mx = T.my = 0; stick.style.display = 'none'; }
+    if (T.look && t.identifier === T.look.id) T.look = null;
+  }
+};
+cv.addEventListener('touchend', endTouch); cv.addEventListener('touchcancel', endTouch);
+const diveBtn = $('dive');
+const diveOn = e => { diveHeld = true; diveBtn.classList.add('on'); e.preventDefault(); };
+const diveOff = () => { diveHeld = false; diveBtn.classList.remove('on'); };
+diveBtn.addEventListener('touchstart', diveOn, { passive: false }); diveBtn.addEventListener('touchend', diveOff); diveBtn.addEventListener('touchcancel', diveOff);
+diveBtn.addEventListener('mousedown', diveOn); addEventListener('mouseup', diveOff);
+
+/* ---------- messages ---------- */
+const LINES = [
+  'the water is exactly body temperature.',
+  'you can hear the filter running somewhere.',
+  'this room was here yesterday.',
+  'nobody ever drained it.',
+  'the lights are on for you.',
+  'keep your head above the water.',
+  'you have walked past this pillar before.',
+  'the deep end is further than it was.',
+  'it is quieter under the water.',
+  'don’t count the rooms.',
+  'there is no lifeguard on duty.',
+  'somebody left their towel here. it is still damp.',
+  'the tiles go on longer than the building does.',
+  'you were told the pool closed at six.',
+  'the ripples are not all yours.'
+];
+const msgEl = $('msg'); let msgTimer = 0, said = new Set(store.get('said', []));
+function say(text, hold){
+  msgEl.textContent = text; msgEl.classList.add('on');
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => msgEl.classList.remove('on'), hold || 5200);
+}
+function sayNew(){
+  let pool = LINES.filter(l => !said.has(l));
+  if (!pool.length) { said.clear(); pool = LINES; }
+  const l = pool[Math.floor(Math.random() * pool.length)];
+  said.add(l); store.set('said', [...said]); say(l);
+}
+
+/* ---------- events ---------- */
+let rooms = 1, visited = new Set(['0,0']), loops = store.get('loops', 0), clock = 0, nextEvent = 14, lightsOut = 0, flick = 0;
+let fig = null; // { mode: 'far'|'behind', t, stare }
+let exitSign = null;
+const hud = $('hud');
+function hudText(){ hud.textContent = 'swimming · room ' + rooms + (loops ? ' · loop ' + (loops + 1) : ''); }
+function ahead(dist){ return [P.x - Math.sin(P.yaw) * dist, P.z - Math.cos(P.yaw) * dist]; }
+function spawnFar(){
+  // stand it in the middle of a room a few rooms ahead, if it's in view
+  for (let tries = 0; tries < 6; tries++) {
+    const d = 18 + Math.random() * 14, a = P.yaw + (Math.random() - 0.5) * 0.7;
+    const cx = cellOf(P.x - Math.sin(a) * d), cz = cellOf(P.z - Math.cos(a) * d), info = cellInfo(cx, cz);
+    if (!cells.has(key(cx, cz))) continue;
+    figure.position.set(cx * CELL + (Math.random() - 0.5) * 2, info.floor < -1 ? WATER - 1.55 : info.floor, cz * CELL + (Math.random() - 0.5) * 2);
+    figure.visible = true; fig = { mode: 'far', t: 0, stare: 0 }; return true;
+  }
+  return false;
+}
+function spawnBehind(){
+  const d = 3.2, bx = P.x + Math.sin(P.yaw) * d, bz = P.z + Math.cos(P.yaw) * d;
+  if (blocked(bx, bz, 0.3)) return false;
+  const f = floorAt(bx, bz);
+  figure.position.set(bx, f < -1 ? WATER - 1.55 : f, bz); figure.visible = true;
+  fig = { mode: 'behind', t: 0, stare: 0 };
+  splash(0.12, 0, 0); setTimeout(() => splash(0.1, 0, 0), 620);
+  return true;
+}
+function vanish(){
+  figure.visible = false; fig = null; flick = 1.2; thump();
+}
+function blackout(sec){ lightsOut = sec; if (actx) A.hum.gain.setTargetAtTime(0, actx.currentTime, 0.03); }
+function event(){
+  const r = Math.random();
+  if (!fig && rooms > 3 && r < 0.3) { if (spawnFar()) return; }
+  if (!fig && rooms > 14 && r < 0.42 && !P.under) { if (spawnBehind()) return; }
+  if (r < 0.55) { splash(0.07, Math.random() < 0.5 ? -0.8 : 0.8, 0); splash(0.06, 0, 0.5); return; }
+  if (r < 0.7) { flick = 2.5; return; }
+  if (r < 0.78 && rooms > 6) { blackout(2.2); return; }
+  sayNew();
+}
+function placeExit(){
+  for (let tries = 0; tries < 8; tries++) {
+    const [ax, az] = ahead(20 + tries * 3), cx = cellOf(ax), cz = cellOf(az), info = cellInfo(cx, cz);
+    if (info.floor < -1 || !edgeE(cx, cz)) continue;
+    // one sign on each face of the wall, above the doorway
+    const mat = new THREE.MeshBasicMaterial({ map: signTex(['EXIT'], '#d9ffe0', '#0f7a3a'), fog: false });
+    const s = new THREE.Group(), geo = new THREE.PlaneGeometry(1.3, 0.5);
+    for (const side of [-1, 1]) { const m = new THREE.Mesh(geo, mat); m.position.x = side * (WALL_T / 2 + 0.02); m.rotation.y = side * Math.PI / 2; s.add(m); }
+    s.position.set(cx * CELL + HALF, Math.max(info.floor, cellInfo(cx + 1, cz).floor) + 3.05, cz * CELL);
+    scene.add(s); exitSign = s; return;
+  }
+}
+function takeExit(){
+  running = false;
+  $('white').classList.add('on'); if (actx) A.out.gain.setTargetAtTime(0, actx.currentTime, 0.6);
+  setTimeout(() => {
+    scene.remove(exitSign); exitSign.children[0].material.map.dispose(); exitSign.children[0].geometry.dispose(); exitSign = null;
+    loops++; store.set('loops', loops);
+    Object.assign(P, { x: 0, y: 0, z: 1.5, vy: 0, yaw: 0, pitch: 0, swim: false });
+    rooms = 1; visited = new Set(['0,0']); lastCell = null; hudText();
+    $('white').classList.remove('on'); if (actx) A.out.gain.setTargetAtTime(0.9, actx.currentTime, 1.5);
+    running = true; last = performance.now();
+    say(loops === 1 ? 'welcome back.' : 'welcome back. again.', 6000);
+  }, 3200);
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), t = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (running && !paused) tick(dt);
+  render(dt);
+}
+function tick(dt){
+  t += dt; clock += dt;
+  let fx = 0, fz = 0;
+  if (keys.KeyW || keys.ArrowUp) fz += 1; if (keys.KeyS || keys.ArrowDown) fz -= 1;
+  if (keys.KeyA || keys.ArrowLeft) fx -= 1; if (keys.KeyD || keys.ArrowRight) fx += 1;
+  fx += T.mx; fz -= T.my;
+  const fl = Math.hypot(fx, fz); if (fl > 1) { fx /= fl; fz /= fl; }
+  const sp = move(dt, fx, fz);
+  // vertical: wade, step, or swim
+  const f = floorAt(P.x, P.z), deep = f < WATER - EYE + 0.2;
+  const surface = WATER - EYE + 0.18;
+  if (deep) {
+    if (!P.swim) { P.swim = true; splash(0.25, 0, 0); }
+    const target = diveHeld ? f + 0.15 : surface;
+    P.vy += ((target - P.y) * (diveHeld ? 1.6 : 3.2) - P.vy * 2.6) * dt;
+    P.y += P.vy * dt; P.y = Math.max(f + 0.1, Math.min(surface + 0.3, P.y));
+  } else {
+    if (P.swim) { P.swim = false; P.vy = 0; }
+    P.y += (f - P.y) * Math.min(1, dt * (f > P.y ? 10 : 6));
+  }
+  diveBtn.classList.toggle('show', deep);
+  // footsteps
+  if (sp > 0.4) {
+    P.bob += dt * (P.swim ? 3 : 7.5);
+    P.stepT -= dt;
+    if (P.stepT <= 0) { P.stepT = P.swim ? 1.1 : 0.52; if (P.swim) splash(0.06, 0, 0); else if (f < WATER) splash(0.1, (Math.random() - 0.5) * 0.3, 0); else step(); }
+  }
+  // rooms
+  const ck = key(cellOf(P.x), cellOf(P.z));
+  if (!visited.has(ck)) {
+    visited.add(ck); rooms++; hudText();
+    if (rooms === 3 && !loops) say('keep walking. the rooms will keep going.', 5000);
+    if (rooms >= 40 && !exitSign && Math.random() < 0.2) placeExit();
+  }
+  streamCells(P.x, P.z);
+  // events
+  if (clock > nextEvent) { clock = 0; nextEvent = 16 + Math.random() * 22; event(); }
+  if (Math.random() < dt / 4) drip();
+  // the figure
+  if (fig) {
+    fig.t += dt;
+    const dx = figure.position.x - P.x, dz = figure.position.z - P.z, d = Math.hypot(dx, dz);
+    figure.rotation.y = Math.atan2(-dx, -dz);
+    const look = (-Math.sin(P.yaw) * dx - Math.cos(P.yaw) * dz) / Math.max(d, 0.001);
+    if (fig.mode === 'far') {
+      if (look > 0.97) fig.stare += dt; else fig.stare = Math.max(0, fig.stare - dt * 0.5);
+      if (d < 10 || fig.stare > 2.2 || fig.t > 30) vanish();
+    } else {
+      if (look > 0.55 && fig.t > 0.4) { blackout(1.3); sting(); vanish(); say('don’t turn around.', 4000); }
+      else if (fig.t > 9) vanish();
+    }
+  }
+  if (exitSign && Math.hypot(exitSign.position.x - P.x, exitSign.position.z - P.z) < 2.4) takeExit();
+}
+const fogTmp = new THREE.Color();
+function render(dt){
+  // camera
+  const bob = P.swim ? Math.sin(P.bob) * 0.05 : Math.sin(P.bob) * 0.035;
+  camera.position.set(P.x, P.y + EYE + bob, P.z);
+  camera.rotation.set(P.pitch, P.yaw, P.swim ? Math.sin(P.bob * 0.5) * 0.02 : 0);
+  const under = camera.position.y < WATER + waveAt(P.x, P.z, t) - 0.02;
+  if (under !== P.under) {
+    P.under = under; setUnder(under);
+    hud.classList.toggle('under', under); msgEl.classList.toggle('under', under);
+    if (running) splash(0.14, 0, 0);
+  }
+  const target = under ? UNDER : AIR;
+  scene.fog.color.lerp(target.fog, Math.min(1, dt * 8));
+  scene.fog.density += (target.density - scene.fog.density) * Math.min(1, dt * 8);
+  // lights: flicker and blackouts
+  let k = 1;
+  if (lightsOut > 0) { lightsOut -= dt; k = 0.04; if (lightsOut <= 0 && actx && !P.under) A.hum.gain.setTargetAtTime(0.32, actx.currentTime, 0.4); }
+  else if (flick > 0) { flick -= dt; k = Math.random() < 0.35 ? 0.25 : 1; }
+  const fk = Math.random() < 0.04 ? 0.15 : 1; // the always-flickering rooms
+  amb.intensity = BASE.amb * k; hemi.intensity = BASE.hemi * k; sun.intensity = BASE.sun * k;
+  M.panel.color.setScalar(k < 1 ? 0.25 + k * 0.75 : 1);
+  M.panelFlicker.color.setScalar(Math.min(k, fk) < 1 ? 0.3 : 1);
+  fogTmp.copy(scene.fog.color);
+  if (k < 1) scene.fog.color.multiplyScalar(0.25 + 0.75 * k);
+  scene.background = scene.fog.color;
+  // water follows you, in whole tiles so the pattern doesn't swim
+  water.position.x = Math.round(P.x / TILE_M) * TILE_M; water.position.z = Math.round(P.z / TILE_M) * TILE_M;
+  updateWater(t);
+  causticTex.offset.set(Math.sin(t * 0.13) * 0.4, t * 0.03);
+  renderer.render(scene, camera);
+  if (k < 1) scene.fog.color.copy(fogTmp);
+}
+
+/* ---------- start / pause ---------- */
+function start(){
+  audio();
+  document.body.classList.add('playing');
+  $('title').classList.add('gone');
+  setTimeout(() => { $('title').hidden = true; }, 1300);
+  running = true; paused = false; last = performance.now();
+  if (!touch && cv.requestPointerLock) cv.requestPointerLock();
+  setTimeout(() => say(loops ? 'you came back.' : 'the pool is open.', 4500), 1600);
+}
+function pause(){
+  if (!running || paused) return;
+  paused = true; $('paused').hidden = false;
+  $('pauseStats').textContent = 'room ' + rooms + '. the water waited for you.';
+  if (actx) actx.suspend();
+}
+function resume(){
+  paused = false; $('paused').hidden = true; last = performance.now();
+  audio(); if (!touch && cv.requestPointerLock) cv.requestPointerLock();
+}
+$('go').addEventListener('click', start);
+$('resume').addEventListener('click', resume);
+$('pause').addEventListener('click', () => paused ? resume() : pause());
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+hudText();
+streamCells(P.x, P.z);
+requestAnimationFrame(frame);
+// test hook
+window.__swim = { P, get rooms(){ return rooms; }, get fig(){ return fig; }, spawnFar, spawnBehind, placeExit, get exitSign(){ return exitSign; }, start, cells, cellInfo, edgeE, streamCells };
+})();
+</script>
+</body>
+</html>
